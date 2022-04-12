@@ -1,0 +1,154 @@
+---
+title: "Esp_football database analysis"
+author: "Hajdú Márk"
+date: '2022 03 21 '
+output:
+  pdf_document: default
+  word_document: default
+---
+
+## Setting up my environment
+Setting up R environment by loading the `tidyverse` and `readxl` packages and setting the working directory
+
+```{r setup, message=FALSE, warning=FALSE}
+
+library( "readxl" )
+library("tidyverse")
+setwd("C:/Users/Márk/Documents/okonometria2")
+```
+
+## Data importing
+Importing the excel file which contains the database
+
+```{r data import, echo=TRUE}
+file<-"c:/Users/Márk/Documents/okonometriajo/ESPfootball.xlsx"
+Esp_football<- read_excel( "ESPfootball.xlsx", sheet= 1)
+```
+
+## Data exploration
+Previewing the data
+
+```{r preview, echo=TRUE}
+str(Esp_football)
+
+```
+## Data cleaning
+### Changing data types
+The Position and the Price are in a bad data type, I change them in order to do the analysis
+```{r changing data type}
+Esp_football$Position<-as.factor(Esp_football$Position)
+Esp_football$PricemillionEuro<-as.numeric(Esp_football$PricemillionEuro)
+
+```
+
+### Basic statistics about the data
+```{r summary}
+summary(Esp_football)
+```
+
+### Filtering out the wrong data
+There are rows that contain unreal, very big vaules, these are probably wrong data. Now I will filter them out
+
+
+```{r filtering}
+Esp_football_filtered<- Esp_football %>% filter(PricemillionEuro<101 &
+                          Esp_football$Passes<100)
+```
+
+### Basic statistics about the filtered database
+
+```{r summary 2}
+summary(Esp_football_filtered)
+```
+
+Now there are not any very big outliers, I can start the analysis
+
+## Linear regression
+I will make a linear regression, the result variable will be the PriceMillionEuro
+```{r}
+model_1 <- lm(PricemillionEuro ~ Position + Age + YellowCards + RedCards + Goalsscored + 
+                Foulscommitted + Shots + Shotsontarget + Assists + Passes, data = Esp_football_filtered)
+summary(model_1)
+```
+
+There are a lot of insignificant variables, that means these variables are not in correlation with the result variable.
+I will apply the backward elimination and I will only show the final model
+
+## Final model
+```{r}
+model_8 <- lm(PricemillionEuro ~ Position + Age
+              + Passes, data = Esp_football_filtered)
+summary(model_8)
+```
+
+All variables are significant, except the midfielder dummy. I leave it in the model, because I do not want to change the reference category. The model has a low R2, it needs a lot of improvement and new variables.
+
+## Data visualization
+
+### The relationship between the age and the market value
+
+```{r}
+
+library(ggplot2)
+ggplot(data = Esp_football_filtered, mapping = aes(x = Age, y = PricemillionEuro)) +
+  geom_point(color="blue")+
+  labs(
+    title = "The relationship between the age and the price",
+    subtitle = "There is a parabola relationship ",
+    x = "Age",
+    y = "Players' market value (in Million EUR)")
+```
+
+It would be proper to include the square of the age variable also and it would model that parabola line
+
+### The relationship between the assists and the market value
+
+```{r}
+ggplot(data = Esp_football_filtered, mapping = aes(x = Assists, y = PricemillionEuro,color=Position)) + facet_wrap(~Position)+
+  geom_point()+
+  labs(
+    title = "The relationship between the assists and the price",
+    subtitle = "Grouped by position",
+    x = "Assists(per match)",
+    y = "Players' market value (in Million EUR)")
+```
+
+There is a surprising negative correlation betewwen the assist and the market value among the midfielders. There is a positive correlation among the forwards. Maybe that is the reason why the assists variable is not significant.
+
+
+
+### The relationship between the goals and the market value
+
+```{r}
+
+ggplot(data = Esp_football_filtered, mapping = aes(x = Goalsscored, y = PricemillionEuro,color=Position)) + facet_wrap(~Position)+
+  geom_point()+
+  labs(
+    title = "The relationship between the goals and the price",
+    subtitle = "Grouped by position",
+    x = "Goals(per match)",
+    y = "Players' market value (in Million EUR)")
+```
+
+The goals variable is definitely a significant variable among the forwards. It would be worth to group the players by position and do separate linear regressions.
+
+### Histogram 
+```{r}
+hist(Esp_football$RedCards,
+     
+     main="Distribution of players according to the red cards",
+     xlab="Red cards(per match)",
+     ylab = "Number of players",
+     col = "lightblue")
+```
+
+The most players never get a red card. So every player will be an outlier if they get a red card.
+
+## Key takeaways
+
+* This final model is a good base model for further analysis
+* According to the final model, the position,age and passes are the most important variables if we analyze the players' marekt value
+* It would be worth to analyze the players separately, grouped by position
+* The square of the age and other new variables might increase the explanatory power
+
+
